@@ -50,7 +50,7 @@
             <!-- Header -->
             <header class="header">
                 <h2>{% block page_title %}Dashboard{% endblock %}</h2>
-                {% if request.endpoint != 'dashboard' %}
+                {% if request.endpoint not in ['dashboard', 'reports'] %}
                     <div class="filter-section">
                         <form action="{{ url_for('set_global_filter') }}" method="POST" class="filter-form">
                             <input type="hidden" name="next" value="{{ request.path }}">
