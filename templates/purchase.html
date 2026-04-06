@@ -39,6 +39,11 @@
     </div>
 </div>
 
+<!-- Download Report -->
+<div style="margin-bottom: 16px;">
+    <a href="/download/purchase.pbix" class="btn">Download Report</a>
+</div>
+
 {% if session.get('role') == 'admin' %}
 <div style="margin-bottom: 16px;">
     <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">

@@ -709,14 +709,19 @@ def reports():
 @app.route('/download/<path:filename>')
 @login_required
 def download(filename: str):
-    """Download a PDF report (admin + manager)."""
+    """Simple file download (PBIX dashboards + PDF reports)."""
+    # Keep it simple: use send_from_directory so the browser downloads the file.
     safe_name = secure_filename(filename)
-    if not safe_name.lower().endswith('.pdf'):
-        abort(404)
-    full_path = os.path.join(REPORTS_DIR, safe_name)
-    if not os.path.exists(full_path):
-        abort(404)
-    return send_from_directory(REPORTS_DIR, safe_name, as_attachment=True)
+
+    # PBIX dashboards stored in static/reports/
+    if safe_name.lower().endswith('.pbix'):
+        return send_from_directory(os.path.join(app.root_path, 'static', 'reports'), safe_name, as_attachment=True)
+
+    # Existing PDF report library stored in reports/
+    if safe_name.lower().endswith('.pdf'):
+        return send_from_directory(REPORTS_DIR, safe_name, as_attachment=True)
+
+    abort(404)
 
 
 @app.route('/reports/delete/<path:filename>', methods=['POST'])
