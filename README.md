@@ -300,17 +300,6 @@ Render automatically deploys on push!
 - **Testing**: Production-ready code
 - **Maintainability**: Simple logic, no external ML libraries
 
-## ✨ Recent Updates
-
-- ✅ Removed 600+ lines of dead CSS code
-- ✅ Deleted unused JavaScript files
-- ✅ Optimized CSS file size
-- ✅ Finalized professional UI design
-- ✅ Added predictive analysis feature
-- ✅ Implemented real CSV data processing
-- ✅ Created advanced filtering system
-- ✅ Added insights engine
-
 ## 🐛 Troubleshooting
 
 ### Port Already in Use
@@ -348,7 +337,7 @@ MIT License - Free for personal and educational use
 
 **Neel Rana**
 - GitHub: https://github.com/Neelrana12
-- Email: neelrana@example.com
+- Email: neelrana126@gmail.com
 
 ---
 
