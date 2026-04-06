@@ -74,22 +74,24 @@ def create_user(email: str, plain_password: str, role: str = "manager", db_path:
 
 
 def ensure_default_admin(db_path: str = DB_PATH) -> None:
-    """Create default admin user if not already present."""
-    default_email = "admin@gmail.com"
+    """Create default demo users (admin + manager) if not already present."""
     default_password = "1234"
 
-    existing = get_user_by_email(default_email, db_path=db_path)
-    if existing:
-        return
+    admin_email = "admin@gmail.com"
+    if not get_user_by_email(admin_email, db_path=db_path):
+        create_user(admin_email, default_password, role="admin", db_path=db_path)
 
-    create_user(default_email, default_password, role="admin", db_path=db_path)
+    manager_email = "manager@gmail.com"
+    if not get_user_by_email(manager_email, db_path=db_path):
+        create_user(manager_email, default_password, role="manager", db_path=db_path)
 
 
 if __name__ == "__main__":
     # Minimal CLI usage (optional):
     #   python db.py
-    # Creates app.db + users table + default admin.
+    # Creates app.db + users table + default demo users.
     init_db()
     ensure_default_admin()
     print("Database initialized.")
     print("Default admin: admin@gmail.com / 1234")
+    print("Default manager: manager@gmail.com / 1234")

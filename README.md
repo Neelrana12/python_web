@@ -101,19 +101,15 @@ python app.py
 Navigate to: `http://127.0.0.1:5000`
 
 ### 5. Login with Demo Credentials
-- **Email**: admin@example.com
-- **Password**: password123
-
-OR
-
-- **Email**: user@example.com
-- **Password**: user123
+- **Admin**: admin@gmail.com / 1234
+- **Manager**: manager@gmail.com / 1234
 
 ## 📁 Project Structure
 
 ```
 python_web/
-├── app.py                       # Main Flask application
+├── app.py                       # Entry-point (creates Flask app)
+├── welltrade_app/               # All routes + helpers (modular package)
 ├── db.py                        # Database functions & auth
 ├── requirements.txt             # Python dependencies
 ├── Procfile                     # Render deployment config
@@ -146,8 +142,8 @@ python_web/
 ### Demo Accounts
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@example.com | password123 |
-| Manager | user@example.com | user123 |
+| Admin | admin@gmail.com | 1234 |
+| Manager | manager@gmail.com | 1234 |
 
 ### Database
 - SQLite database (`app.db`)
@@ -191,7 +187,7 @@ python_web/
 | Route | Method | Description |
 |-------|--------|-------------|
 | `/upload` | POST | Upload CSV/PDF (Admin only) |
-| `/download/<filename>` | GET | Download PDF report |
+| `/download/<filename>` | GET | Download PBIX (static/reports) or PDF (reports) |
 | `/reports/delete/<filename>` | POST | Delete report (Admin only) |
 
 ### Filters
