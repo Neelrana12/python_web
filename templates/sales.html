@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Dashboard - Welltrade Surgipharma{% endblock %}
+{% block page_title %}Sales Analytics Dashboard{% endblock %}
+
+{% block content %}
+<p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 30px;">
+    📊 <strong>Real-time Sales Analytics</strong><br>
+    Track sales performance, revenue trends, and market insights. Monitor sales by city, product, and time period.
+</p>
+
+<!-- KPI SECTION -->
+<div class="kpi-cards-container">
+    <div class="kpi-card">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-content">
+            <h3>Total Sales</h3>
+            <p class="kpi-value" id="total-sales">--</p>
+            <p class="kpi-subtitle">Revenue</p>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">📍</div>
+        <div class="kpi-content">
+            <h3>Top City</h3>
+            <p class="kpi-value" id="top-sales-city">--</p>
+            <p class="kpi-subtitle">Highest sales location</p>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-content">
+            <h3>Growth</h3>
+            <p class="kpi-value" id="sales-growth">--</p>
+            <p class="kpi-subtitle">Last 30 days vs previous</p>
+        </div>
+    </div>
+</div>
+
+{% if session.get('role') == 'admin' %}
+<div style="margin-bottom: 16px;">
+    <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="hidden" name="upload_kind" value="sales_csv">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit" class="btn">Upload Sales CSV</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="dashboard-container">
+    <div class="chart-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom: 15px;">
+            <h3 style="margin:0;">Sales by City</h3>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <label for="sales-topn" style="font-size:13px; color:#666;">Show</label>
+                <select id="sales-topn" class="form-group">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                </select>
+            </div>
+        </div>
+        <div id="sales-loading" class="loading-row hidden"><span class="spinner"></span><span>Loading...</span></div>
+        <div id="sales-no-data" class="no-data hidden">No data found.</div>
+        <canvas id="salesChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const fmt = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR', minimumFractionDigits: 0});
+    let chart = null;
+
+    function getParams() {
+        const p = new URLSearchParams();
+        const top = document.getElementById('sales-topn')?.value || '10';
+        p.set('top_n', top);
+        return p.toString();
+    }
+    
+    async function loadData() {
+        try {
+            document.getElementById('sales-no-data')?.classList.add('hidden');
+            document.getElementById('sales-loading')?.classList.remove('hidden');
+            const url = '/api/sales-data?' + getParams();
+            const data = await fetch(url).then(r => r.json());
+            
+            document.getElementById('total-sales').textContent = fmt.format(data.total);
+            document.getElementById('top-sales-city').textContent = data.top_region || '--';
+            const g = data.growth_pct;
+            document.getElementById('sales-growth').textContent = (g === null || Number.isNaN(g)) ? '--' : (g >= 0 ? '+' : '') + g.toFixed(1) + '%';
+
+            if (!data.labels?.length) {
+                document.getElementById('sales-no-data')?.classList.remove('hidden');
+                return;
+            }
+            
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            if (chart) chart.destroy();
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: `Sales (₹) - Top ${data.top_n} Cities`,
+                        data: data.values,
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#1e40af',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#2563eb'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: true, position: 'top' } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => '₹' + v.toLocaleString('en-IN') } } }
+                }
+            });
+        } catch (e) {
+            console.error('Error:', e);
+        } finally {
+            document.getElementById('sales-loading')?.classList.add('hidden');
+        }
+    }
+
+    document.getElementById('sales-topn')?.addEventListener('change', loadData);
+    document.addEventListener('DOMContentLoaded', loadData);
+</script>
+{% endblock %}

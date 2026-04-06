@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Comparison Dashboard - Welltrade Surgipharma{% endblock %}
+{% block page_title %}Sales vs Purchase Comparison{% endblock %}
+
+{% block content %}
+<p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 30px;">
+    📊 <strong>Comparative Business Analysis</strong><br>
+    Analyze the relationship between sales and purchase data. Identify profit margins, inventory turnover, and business efficiency.
+</p>
+
+<!-- KPI SECTION -->
+<div class="kpi-cards-container">
+    <div class="kpi-card">
+        <div class="kpi-icon">📊</div>
+        <div class="kpi-content">
+            <h3>Total Sales</h3>
+            <p class="kpi-value" id="comparison-sales">--</p>
+            <p class="kpi-subtitle">Revenue</p>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">💼</div>
+        <div class="kpi-content">
+            <h3>Total Purchase</h3>
+            <p class="kpi-value" id="comparison-purchase">--</p>
+            <p class="kpi-subtitle">Cost</p>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-content">
+            <h3>Net Profit</h3>
+            <p class="kpi-value" id="comparison-profit">--</p>
+            <p class="kpi-subtitle" id="comparison-margin">Margin: --</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-container">
+    <div class="chart-container" style="max-width: 500px; margin: 0 auto;">
+        <h3>Sales vs Purchase Distribution</h3>
+        <div id="comparison-loading" class="loading-row hidden"><span class="spinner"></span><span>Loading...</span></div>
+        <div id="comparison-no-data" class="no-data hidden">No data found.</div>
+        <canvas id="comparisonChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const fmt = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR', minimumFractionDigits: 0});
+    let chart = null;
+    
+    async function loadData() {
+        try {
+            document.getElementById('comparison-loading')?.classList.remove('hidden');
+            const data = await fetch('/api/comparison').then(r => r.json());
+            
+            document.getElementById('comparison-sales').textContent = fmt.format(data.total_sales || 0);
+            document.getElementById('comparison-purchase').textContent = fmt.format(data.total_purchase || 0);
+            
+            const profit = (data.total_sales || 0) - (data.total_purchase || 0);
+            const margin = (data.total_sales || 0) > 0 ? ((profit / (data.total_sales || 0)) * 100).toFixed(1) : '0.0';
+            
+            document.getElementById('comparison-profit').textContent = fmt.format(profit);
+            document.getElementById('comparison-margin').textContent = `Margin: ${margin}%`;
+
+            if (!data.values?.length || (data.values[0] === 0 && data.values[1] === 0)) {
+                document.getElementById('comparison-no-data')?.classList.remove('hidden');
+                return;
+            }
+            
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            if (chart) chart.destroy();
+            
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: ['#3b82f6', '#10b981'],
+                        borderColor: ['#1e40af', '#059669'],
+                        borderWidth: 2,
+                        hoverBackgroundColor: ['#2563eb', '#059669']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true, position: 'bottom' },
+                        tooltip: { callbacks: { label: ctx => {
+                            const val = ctx.parsed || 0;
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = ((val / total) * 100).toFixed(1);
+                            return (ctx.label || '') + ': ' + fmt.format(val) + ' (' + pct + '%)';
+                        }}}
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Error:', e);
+        } finally {
+            document.getElementById('comparison-loading')?.classList.add('hidden');
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', loadData);
+</script>
+{% endblock %}

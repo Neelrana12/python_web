@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Dashboard - Welltrade Surgipharma{% endblock %}
+{% block page_title %}Purchase Insights Dashboard{% endblock %}
+
+{% block content %}
+<p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 30px;">
+    🛒 <strong>Purchase Performance Metrics</strong><br>
+    Monitor vendor performance, purchase history, order trends, and inventory levels. Optimize your procurement strategy.
+</p>
+
+<!-- KPI SECTION -->
+<div class="kpi-cards-container">
+    <div class="kpi-card">
+        <div class="kpi-icon">💳</div>
+        <div class="kpi-content">
+            <h3>Total Purchase</h3>
+            <p class="kpi-value" id="total-purchase">--</p>
+            <p class="kpi-subtitle">Cost</p>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">🏷️</div>
+        <div class="kpi-content">
+            <h3>Top Vendor Purchase</h3>
+            <p class="kpi-value" id="top-vendor-amount">--</p>
+            <p class="kpi-subtitle" id="top-purchase-vendor">Vendor: --</p>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-content">
+            <h3>Growth</h3>
+            <p class="kpi-value" id="purchase-growth">--</p>
+            <p class="kpi-subtitle">Last 30 days vs previous</p>
+        </div>
+    </div>
+</div>
+
+{% if session.get('role') == 'admin' %}
+<div style="margin-bottom: 16px;">
+    <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="hidden" name="upload_kind" value="purchase_csv">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit" class="btn">Upload Purchase CSV</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="dashboard-container">
+    <div class="chart-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom: 15px;">
+            <h3 style="margin:0;">Purchase by Vendor</h3>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <label for="purchase-topn" style="font-size:13px; color:#666;">Show</label>
+                <select id="purchase-topn" class="form-group">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                </select>
+            </div>
+        </div>
+        <div id="purchase-loading" class="loading-row hidden"><span class="spinner"></span><span>Loading...</span></div>
+        <div id="purchase-no-data" class="no-data hidden">No data found.</div>
+        <canvas id="purchaseChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const fmt = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR', minimumFractionDigits: 0});
+    let chart = null;
+
+    function getParams() {
+        const p = new URLSearchParams();
+        const top = document.getElementById('purchase-topn')?.value || '10';
+        p.set('top_n', top);
+        return p.toString();
+    }
+    
+    async function loadData() {
+        try {
+            document.getElementById('purchase-no-data')?.classList.add('hidden');
+            document.getElementById('purchase-loading')?.classList.remove('hidden');
+            const url = '/api/purchase-data?' + getParams();
+            const data = await fetch(url).then(r => r.json());
+            
+            document.getElementById('total-purchase').textContent = fmt.format(data.total);
+            const topVendorName = data.top_region || '--';
+            const topVendorAmount = Array.isArray(data.values) && data.values.length ? Number(data.values[0]) : 0;
+            document.getElementById('top-vendor-amount').textContent = fmt.format(topVendorAmount);
+            document.getElementById('top-purchase-vendor').textContent = `Vendor: ${topVendorName}`;
+            const g = data.growth_pct;
+            document.getElementById('purchase-growth').textContent = (g === null || Number.isNaN(g)) ? '--' : (g >= 0 ? '+' : '') + g.toFixed(1) + '%';
+
+            if (!data.labels?.length) {
+                document.getElementById('purchase-no-data')?.classList.remove('hidden');
+                return;
+            }
+            
+            const ctx = document.getElementById('purchaseChart').getContext('2d');
+            if (chart) chart.destroy();
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: `Purchase (₹) - Top ${data.top_n} Vendors`,
+                        data: data.values,
+                        backgroundColor: '#10b981',
+                        borderColor: '#059669',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#059669'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: true, position: 'top' } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => '₹' + v.toLocaleString('en-IN') } } }
+                }
+            });
+        } catch (e) {
+            console.error('Error:', e);
+        } finally {
+            document.getElementById('purchase-loading')?.classList.add('hidden');
+        }
+    }
+
+    document.getElementById('purchase-topn')?.addEventListener('change', loadData);
+    document.addEventListener('DOMContentLoaded', loadData);
+</script>
+{% endblock %}

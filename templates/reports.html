@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Welltrade Surgipharma{% endblock %}
+{% block page_title %}Report Library{% endblock %}
+
+{% block content %}
+<p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+    📄 <strong>Report Library</strong><br>
+    Download available PDF reports.
+</p>
+
+{% if session.get('role') == 'admin' %}
+<div style="margin-bottom: 20px;">
+    <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="hidden" name="upload_kind" value="report_pdf">
+        <input type="file" name="file" accept=".pdf" required>
+        <button type="submit" class="btn">Upload PDF Report</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="dashboard-container">
+    <div class="chart-container">
+        <h3>Available Reports</h3>
+        {% if files and files|length > 0 %}
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                {% for f in files %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 0; border-bottom:1px solid #eee;">
+                        <div style="color:#333; font-weight:600;">{{ f }}</div>
+                        <div style="display:flex; gap:10px;">
+                            <a class="btn" href="{{ url_for('download', filename=f) }}">Download</a>
+                            {% if session.get('role') == 'admin' %}
+                                <form action="{{ url_for('delete_report', filename=f) }}" method="POST" style="margin:0;">
+                                    <button type="submit" class="btn">Delete</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:#999;">No reports uploaded yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

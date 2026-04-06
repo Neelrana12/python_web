@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Predictive Analysis - Welltrade Surgipharma{% endblock %}
+{% block page_title %}Predictive Analysis{% endblock %}
+
+{% block content %}
+<p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 30px;">
+    🔮 <strong>Simple Trend Forecast</strong><br>
+    We group past data month-wise, calculate average monthly growth, and forecast the next 3–4 months.
+</p>
+
+<div class="dashboard-container">
+    <div class="chart-container">
+        <h3 style="margin:0 0 15px;">Sales Prediction (Next 3 Months)</h3>
+        <div id="pred-sales-loading" class="loading-row hidden"><span class="spinner"></span><span>Loading...</span></div>
+        <div id="pred-sales-no-data" class="no-data hidden">No prediction data found.</div>
+        <canvas id="predSalesChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h3 style="margin:0 0 15px;">Purchase Prediction (Next 3 Months)</h3>
+        <div id="pred-purchase-loading" class="loading-row hidden"><span class="spinner"></span><span>Loading...</span></div>
+        <div id="pred-purchase-no-data" class="no-data hidden">No prediction data found.</div>
+        <canvas id="predPurchaseChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const moneyTicks = v => '₹' + Number(v).toLocaleString('en-IN');
+    let salesChart = null;
+    let purchaseChart = null;
+
+    // Fetch + draw a simple line chart from a prediction API
+    async function renderPredictionChart({ url, canvasId, loadingId, noDataId, label, color }) {
+        try {
+            document.getElementById(noDataId)?.classList.add('hidden');
+            document.getElementById(loadingId)?.classList.remove('hidden');
+
+            const data = await fetch(url).then(r => r.json());
+            const months = Array.isArray(data.months) ? data.months : [];
+            const preds = Array.isArray(data.predictions) ? data.predictions : [];
+
+            if (!months.length || !preds.length) {
+                document.getElementById(noDataId)?.classList.remove('hidden');
+                return null;
+            }
+
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label,
+                        data: preds,
+                        borderColor: color,
+                        backgroundColor: color,
+                        tension: 0.25,
+                        fill: false,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: true, position: 'top' } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: moneyTicks } } }
+                }
+            });
+        } catch (e) {
+            console.error('Prediction chart error:', e);
+            document.getElementById(noDataId)?.classList.remove('hidden');
+            return null;
+        } finally {
+            document.getElementById(loadingId)?.classList.add('hidden');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        if (salesChart) salesChart.destroy();
+        salesChart = await renderPredictionChart({
+            url: '/api/predict-sales?months=3',
+            canvasId: 'predSalesChart',
+            loadingId: 'pred-sales-loading',
+            noDataId: 'pred-sales-no-data',
+            label: 'Predicted Sales',
+            color: '#3b82f6'
+        });
+
+        if (purchaseChart) purchaseChart.destroy();
+        purchaseChart = await renderPredictionChart({
+            url: '/api/predict-purchase?months=3',
+            canvasId: 'predPurchaseChart',
+            loadingId: 'pred-purchase-loading',
+            noDataId: 'pred-purchase-no-data',
+            label: 'Predicted Purchase',
+            color: '#10b981'
+        });
+    });
+</script>
+{% endblock %}

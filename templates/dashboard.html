@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Welltrade Surgipharma{% endblock %}
+{% block page_title %}Welcome Dashboard{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1>Welcome, <strong>{{ username }}</strong>! 👋</h1>
+    <p>Your analytics hub for real-time business insights</p>
+</div>
+
+<!-- KPI CARDS SECTION -->
+<div class="kpi-cards-container">
+    <div class="kpi-card">
+        <div class="kpi-icon">📊</div>
+        <div class="kpi-content">
+            <h3>Total Sales</h3>
+            <p class="kpi-value" id="kpi-sales">--</p>
+            <p class="kpi-subtitle" id="kpi-sales-region">Top Region: --</p>
+            <p class="kpi-subtitle" id="kpi-sales-growth">Growth: --</p>
+        </div>
+    </div>
+    
+    <div class="kpi-card">
+        <div class="kpi-icon">🛒</div>
+        <div class="kpi-content">
+            <h3>Total Purchase</h3>
+            <p class="kpi-value" id="kpi-purchase">--</p>
+            <p class="kpi-subtitle" id="kpi-purchase-region">Top Region: --</p>
+            <p class="kpi-subtitle" id="kpi-purchase-growth">Growth: --</p>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-content">
+            <h3>Profit Margin</h3>
+            <p class="kpi-value" id="kpi-margin">--</p>
+            <p class="kpi-subtitle" id="kpi-margin-pct">Difference: --</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-container" style="margin-top: 18px;">
+    <div class="chart-container">
+        <h3>Insights</h3>
+        <div id="insights-loading" class="loading-row hidden"><span class="spinner"></span><span>Loading...</span></div>
+        <div id="insights-no-data" class="no-data hidden">No data found.</div>
+        <div id="insights-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+</div>
+
+<div class="dashboard-info">
+    <div class="info-card">
+        <h3>📊 Sales Analytics</h3>
+        <p>Real-time sales trends, revenue tracking, and performance metrics. Monitor your sales pipeline and growth patterns.</p>
+        <a href="{{ url_for('sales') }}" class="btn">View Sales Dashboard</a>
+    </div>
+    
+    <div class="info-card">
+        <h3>🛒 Purchase Insights</h3>
+        <p>Track supplier performance, purchase history, and inventory metrics. Optimize your purchasing strategy.</p>
+        <a href="{{ url_for('purchase') }}" class="btn">View Purchase Dashboard</a>
+    </div>
+    
+    <div class="info-card">
+        <h3>📈 Comparative Analysis</h3>
+        <p>In-depth comparison between sales and purchase data. Identify trends and business opportunities.</p>
+        <a href="{{ url_for('comparison') }}" class="btn">Compare Data</a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const fmt = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR', minimumFractionDigits: 0});
+    
+    async function loadKPIData() {
+        try {
+            document.getElementById('insights-loading')?.classList.remove('hidden');
+            const [s, p, c, i] = await Promise.all([
+                fetch('/api/sales-data').then(r => r.json()),
+                fetch('/api/purchase-data').then(r => r.json()),
+                fetch('/api/comparison').then(r => r.json()),
+                fetch('/api/insights').then(r => r.json())
+            ]);
+            
+            const formatGrowth = g => g === null ? 'N/A' : `${g >= 0 ? '+' : ''}${g.toFixed(1)}%`;
+            
+            document.getElementById('kpi-sales').textContent = fmt.format(s.total);
+            document.getElementById('kpi-sales-region').textContent = `Top Region: ${s.top_region}`;
+            document.getElementById('kpi-sales-growth').textContent = `Growth: ${formatGrowth(s.growth_pct)}`;
+            
+            document.getElementById('kpi-purchase').textContent = fmt.format(p.total);
+            document.getElementById('kpi-purchase-region').textContent = `Top Region: ${p.top_region}`;
+            document.getElementById('kpi-purchase-growth').textContent = `Growth: ${formatGrowth(p.growth_pct)}`;
+            
+            const margin = s.total > 0 ? (((c.difference / s.total) * 100).toFixed(1)) : '0.0';
+            document.getElementById('kpi-margin').textContent = fmt.format(c.difference);
+            document.getElementById('kpi-margin-pct').textContent = `Margin: ${margin}%`;
+
+            const list = document.getElementById('insights-list');
+            const arr = (i?.insights || []);
+            if (arr.length === 0) {
+                document.getElementById('insights-no-data')?.classList.remove('hidden');
+            } else {
+                arr.forEach(t => {
+                    const div = document.createElement('div');
+                    div.style.color = '#444';
+                    div.textContent = '• ' + t;
+                    list.appendChild(div);
+                });
+            }
+        } catch (e) {
+            console.error('Error:', e);
+        } finally {
+            document.getElementById('insights-loading')?.classList.add('hidden');
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', loadKPIData);
+</script>
+{% endblock %}

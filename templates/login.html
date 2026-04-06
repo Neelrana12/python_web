@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Welltrade Surgipharma</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-page-overlay" style="background-image: url('{{ url_for('static', filename='images/loginimg.png') }}');">
+        <div class="login-form-overlay-right">
+            <div class="login-form-box-glassmorphism">
+                <div class="login-logo">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="WellTrade SurgiPharma">
+                </div>
+                <div class="login-header-glass">
+                    <h1>Login</h1>
+                </div>
+                {% if error %}
+                    <div class="error-message-glass">{{ error }}</div>
+                {% endif %}
+                <form method="POST" class="login-form-glass">
+                    <div class="form-group-glass">
+                        <label>Email</label>
+                        <input type="text" name="username" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group-glass">
+                        <label>Password</label>
+                        <input type="password" name="password" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-forgot-glass">
+                        <a href="#">Forgot password?</a>
+                    </div>
+                    <button type="submit" class="login-btn-glass">Sign In</button>
+                </form>
+                <div class="login-register-glass">
+                    <p>New here? <a href="#">Create account</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
