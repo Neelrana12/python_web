@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard - Welltrade Surgipharma{% endblock %}
-{% block page_title %}Welcome Dashboard{% endblock %}
+{% block page_title %}About{% endblock %}
 
 {% block content %}
+<div class="caption-bar" aria-label="Dashboard highlights">
+    <div class="caption-track">
+        <span class="caption-text">Empowering pharma decisions with real-time data insights and intelligent analytics 📈🚀</span>
+    </div>
+</div>
+
 <div class="welcome-section">
     <h1>Welcome, <strong>{{ username }}</strong>! 👋</h1>
     <p>Your analytics hub for real-time business insights</p>
@@ -117,6 +123,8 @@
         }
     }
     
-    document.addEventListener('DOMContentLoaded', loadKPIData);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadKPIData();
+    });
 </script>
 {% endblock %}
