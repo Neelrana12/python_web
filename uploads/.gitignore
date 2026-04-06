@@ -1,0 +1,2 @@
+# Keep uploads folder out of git
+*.pdf

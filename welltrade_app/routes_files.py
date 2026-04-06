@@ -9,11 +9,64 @@ from werkzeug.utils import secure_filename
 from .auth import admin_required, get_username, login_required
 from .file_validation import validate_csv, validate_pdf
 
+from db import add_report, delete_report_by_filename, list_reports
+
 
 def register_file_routes(app):
     data_dir = app.config["DATA_DIR"]
     reports_dir = app.config["REPORTS_DIR"]
+    uploads_dir = app.config.get("UPLOADS_DIR") or reports_dir
     allowed_report_extensions = app.config["ALLOWED_REPORT_EXTENSIONS"]
+
+    bootstrapped_reports = False
+
+    def bootstrap_reports_storage() -> None:
+        """One-time migration: move legacy reports/*.pdf into uploads/ and sync DB."""
+
+        nonlocal bootstrapped_reports
+        if bootstrapped_reports:
+            return
+        bootstrapped_reports = True
+
+        os.makedirs(uploads_dir, exist_ok=True)
+
+        # Move any legacy PDFs from reports_dir -> uploads_dir
+        try:
+            legacy_names = [n for n in os.listdir(reports_dir) if n.lower().endswith(".pdf")]
+        except FileNotFoundError:
+            legacy_names = []
+
+        for name in legacy_names:
+            src = os.path.join(reports_dir, name)
+            if not os.path.isfile(src):
+                continue
+
+            safe_name = secure_filename(name) or "report.pdf"
+            if not safe_name.lower().endswith(".pdf"):
+                safe_name = safe_name + ".pdf"
+
+            dst = os.path.join(uploads_dir, safe_name)
+            if os.path.exists(dst):
+                base, _ = os.path.splitext(safe_name)
+                counter = 1
+                while os.path.exists(os.path.join(uploads_dir, f"{base}-{counter}.pdf")):
+                    counter += 1
+                dst = os.path.join(uploads_dir, f"{base}-{counter}.pdf")
+
+            try:
+                os.replace(src, dst)
+            except Exception:
+                continue
+            add_report(os.path.basename(dst))
+
+        # Ensure uploads_dir PDFs are present in DB (idempotent)
+        try:
+            upload_names = [n for n in os.listdir(uploads_dir) if n.lower().endswith(".pdf")]
+        except FileNotFoundError:
+            upload_names = []
+
+        for name in upload_names:
+            add_report(name)
 
     @app.route("/upload", methods=["POST"])
     @admin_required
@@ -63,15 +116,16 @@ def register_file_routes(app):
         if not safe_name.lower().endswith(".pdf"):
             safe_name = safe_name + ".pdf"
 
-        target_path = os.path.join(reports_dir, safe_name)
+        target_path = os.path.join(uploads_dir, safe_name)
         if os.path.exists(target_path):
             base, _ = os.path.splitext(safe_name)
             counter = 1
-            while os.path.exists(os.path.join(reports_dir, f"{base}-{counter}.pdf")):
+            while os.path.exists(os.path.join(uploads_dir, f"{base}-{counter}.pdf")):
                 counter += 1
-            target_path = os.path.join(reports_dir, f"{base}-{counter}.pdf")
+            target_path = os.path.join(uploads_dir, f"{base}-{counter}.pdf")
 
         uploaded_file.save(target_path)
+        add_report(os.path.basename(target_path))
         return redirect(url_for("reports"))
 
     @app.route("/reports")
@@ -79,15 +133,17 @@ def register_file_routes(app):
     def reports():
         """Report library: list PDF reports (admin + manager)."""
 
-        files = []
-        try:
-            for name in os.listdir(reports_dir):
-                if name.lower().endswith(".pdf"):
-                    files.append(name)
-        except FileNotFoundError:
-            files = []
+        bootstrap_reports_storage()
 
-        files.sort(key=lambda x: x.lower())
+        files: list[str] = []
+        for name in list_reports():
+            if not name.lower().endswith(".pdf"):
+                continue
+            if os.path.exists(os.path.join(uploads_dir, name)):
+                files.append(name)
+            else:
+                delete_report_by_filename(name)
+
         return render_template("reports.html", username=get_username(), files=files)
 
     @app.route("/download/<path:filename>")
@@ -105,7 +161,7 @@ def register_file_routes(app):
             )
 
         if safe_name.lower().endswith(".pdf"):
-            return send_from_directory(reports_dir, safe_name, as_attachment=True)
+            return send_from_directory(uploads_dir, safe_name, as_attachment=True)
 
         abort(404)
 
@@ -118,13 +174,13 @@ def register_file_routes(app):
         if not safe_name.lower().endswith(".pdf"):
             abort(404)
 
-        full_path = os.path.join(reports_dir, safe_name)
-        if not os.path.exists(full_path):
-            abort(404)
+        full_path = os.path.join(uploads_dir, safe_name)
+        if os.path.exists(full_path):
+            try:
+                os.remove(full_path)
+            except Exception:
+                return "Failed to delete report", 500
 
-        try:
-            os.remove(full_path)
-        except Exception:
-            return "Failed to delete report", 500
+        delete_report_by_filename(safe_name)
 
         return redirect(url_for("reports"))

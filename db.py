@@ -27,7 +27,47 @@ def init_db(db_path: str = DB_PATH) -> None:
             );
             """
         )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT NOT NULL UNIQUE
+            );
+            """
+        )
         conn.commit()
+
+
+def add_report(filename: str, db_path: str = DB_PATH) -> int:
+    safe_name = (filename or "").strip()
+    if not safe_name:
+        raise ValueError("filename required")
+
+    with get_connection(db_path) as conn:
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO reports (filename) VALUES (?)",
+            (safe_name,),
+        )
+        conn.commit()
+        return int(cursor.lastrowid or 0)
+
+
+def list_reports(db_path: str = DB_PATH) -> list[str]:
+    with get_connection(db_path) as conn:
+        rows = conn.execute("SELECT filename FROM reports ORDER BY LOWER(filename)").fetchall()
+    return [str(r["filename"]) for r in rows]
+
+
+def delete_report_by_filename(filename: str, db_path: str = DB_PATH) -> int:
+    safe_name = (filename or "").strip()
+    if not safe_name:
+        return 0
+
+    with get_connection(db_path) as conn:
+        cursor = conn.execute("DELETE FROM reports WHERE filename = ?", (safe_name,))
+        conn.commit()
+        return int(cursor.rowcount)
 
 
 def hash_password(plain_password: str) -> str:

@@ -24,14 +24,17 @@ def create_app(*, base_dir: str) -> Flask:
 
     data_dir = os.path.join(base_dir, "data")
     reports_dir = os.path.join(base_dir, "reports")
+    uploads_dir = os.path.join(base_dir, "uploads")
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(reports_dir, exist_ok=True)
+    os.makedirs(uploads_dir, exist_ok=True)
 
     max_upload_mb = 10
     app.config.update(
         BASE_DIR=base_dir,
         DATA_DIR=data_dir,
         REPORTS_DIR=reports_dir,
+        UPLOADS_DIR=uploads_dir,
         MAX_UPLOAD_MB=max_upload_mb,
         MAX_CONTENT_LENGTH=max_upload_mb * 1024 * 1024,
         ALLOWED_REPORT_EXTENSIONS={".pdf"},
