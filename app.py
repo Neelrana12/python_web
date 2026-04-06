@@ -318,19 +318,22 @@ def api_predict_sales():
     monthly = df.groupby(df['date'].dt.to_period('M'))['amount'].sum().sort_index()
     last_value = float(monthly.iloc[-1])
 
-    # 2) Average monthly growth (use recent months for stability)
+    # 2) Average monthly % growth (more stable than absolute ₹ diff)
     recent = monthly.tail(6)
-    diffs = recent.diff().dropna()
-    avg_growth = float(diffs.mean()) if len(diffs) > 0 else 0.0
+    pct = recent.pct_change().dropna()
+    avg_pct = float(pct.mean()) if len(pct) > 0 else 0.0
+    # Prevent impossible drop below zero (e.g., -150%)
+    if avg_pct < -0.95:
+        avg_pct = -0.95
 
-    # 3) Predict next months: last_value + avg_growth * i
+    # 3) Predict next months: last_value * (1 + avg_pct)^i
     last_period = monthly.index[-1]
     months = []
     predictions = []
     for i in range(1, months_ahead + 1):
         next_period = last_period + i
         months.append(next_period.to_timestamp().strftime('%b %Y'))
-        predictions.append(max(0.0, last_value + avg_growth * i))
+        predictions.append(max(0.0, last_value * ((1.0 + avg_pct) ** i)))
 
     return jsonify({'months': months, 'predictions': [float(v) for v in predictions]})
 
@@ -369,9 +372,12 @@ def api_predict_purchase():
     monthly = df.groupby(df['date'].dt.to_period('M'))['amount'].sum().sort_index()
     last_value = float(monthly.iloc[-1])
 
+    # Average monthly % growth (compounded)
     recent = monthly.tail(6)
-    diffs = recent.diff().dropna()
-    avg_growth = float(diffs.mean()) if len(diffs) > 0 else 0.0
+    pct = recent.pct_change().dropna()
+    avg_pct = float(pct.mean()) if len(pct) > 0 else 0.0
+    if avg_pct < -0.95:
+        avg_pct = -0.95
 
     last_period = monthly.index[-1]
     months = []
@@ -379,7 +385,7 @@ def api_predict_purchase():
     for i in range(1, months_ahead + 1):
         next_period = last_period + i
         months.append(next_period.to_timestamp().strftime('%b %Y'))
-        predictions.append(max(0.0, last_value + avg_growth * i))
+        predictions.append(max(0.0, last_value * ((1.0 + avg_pct) ** i)))
 
     return jsonify({'months': months, 'predictions': [float(v) for v in predictions]})
 
