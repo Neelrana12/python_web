@@ -39,11 +39,6 @@
     </div>
 </div>
 
-<!-- Download Report -->
-<div style="margin-bottom: 16px;">
-    <a href="/download/purchase.pbix" class="btn">Download Report</a>
-</div>
-
 {% if session.get('role') == 'admin' %}
 <div style="margin-bottom: 16px;">
     <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -70,6 +65,11 @@
         <div id="purchase-no-data" class="no-data hidden">No data found.</div>
         <canvas id="purchaseChart"></canvas>
     </div>
+</div>
+
+<!-- Download Report -->
+<div style="margin-top: 16px;">
+    <a href="/download/purchase.pbix" class="btn">Download Report</a>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
