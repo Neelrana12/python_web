@@ -5,8 +5,8 @@
 
 {% block content %}
 <p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 30px;">
-    🔮 <strong>Simple Trend Forecast</strong><br>
-    We group past data month-wise, calculate average monthly growth, and forecast the next 3–4 months.
+    🔮 <strong>Simple Trend Forecast (Linear Regression)</strong><br>
+    We convert past data into monthly totals, fit a straight-line trend, and forecast the next 3–4 months.
 </p>
 
 <div class="dashboard-container">
@@ -25,11 +25,86 @@
     </div>
 </div>
 
+<!-- Download button (simple) -->
+<div style="margin-top: 22px; text-align: center;">
+    <button id="downloadPredictionBtn" class="btn" type="button">Download Prediction (CSV)</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const moneyTicks = v => '₹' + Number(v).toLocaleString('en-IN');
     let salesChart = null;
     let purchaseChart = null;
+
+    function toCsvCell(value) {
+        const s = String(value ?? '');
+        // Quote if contains comma/newline/quote
+        if (s.includes(',') || s.includes('\n') || s.includes('"')) {
+            return '"' + s.replaceAll('"', '""') + '"';
+        }
+        return s;
+    }
+
+    async function downloadPredictionCsv() {
+        const btn = document.getElementById('downloadPredictionBtn');
+        if (!btn) return;
+
+        btn.disabled = true;
+        const oldText = btn.textContent;
+        btn.textContent = 'Preparing...';
+
+        try {
+            const [sales, purchase] = await Promise.all([
+                fetch('/api/predict-sales?months=3').then(r => r.json()),
+                fetch('/api/predict-purchase?months=3').then(r => r.json())
+            ]);
+
+            const rows = [];
+            rows.push(['type', 'month', 'value']);
+
+            // Sales (history + forecast)
+            (sales.history_months || []).forEach((m, i) => {
+                const v = (sales.history_values || [])[i];
+                rows.push(['sales_history', m, v]);
+            });
+            (sales.months || []).forEach((m, i) => {
+                const v = (sales.predictions || [])[i];
+                rows.push(['sales_forecast', m, v]);
+            });
+
+            // Purchase (history + forecast)
+            (purchase.history_months || []).forEach((m, i) => {
+                const v = (purchase.history_values || [])[i];
+                rows.push(['purchase_history', m, v]);
+            });
+            (purchase.months || []).forEach((m, i) => {
+                const v = (purchase.predictions || [])[i];
+                rows.push(['purchase_forecast', m, v]);
+            });
+
+            const csv = rows
+                .map(r => r.map(toCsvCell).join(','))
+                .join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'prediction.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+
+        } catch (e) {
+            console.error('Download prediction error:', e);
+            alert('Download failed. Please try again.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText;
+        }
+    }
 
     // Fetch + draw a simple line chart from a prediction API
     async function renderPredictionChart({ url, canvasId, loadingId, noDataId, label, color }) {
@@ -38,28 +113,48 @@
             document.getElementById(loadingId)?.classList.remove('hidden');
 
             const data = await fetch(url).then(r => r.json());
+            const historyMonths = Array.isArray(data.history_months) ? data.history_months : [];
+            const historyValues = Array.isArray(data.history_values) ? data.history_values : [];
             const months = Array.isArray(data.months) ? data.months : [];
             const preds = Array.isArray(data.predictions) ? data.predictions : [];
 
-            if (!months.length || !preds.length) {
+            if ((!historyMonths.length || !historyValues.length) && (!months.length || !preds.length)) {
                 document.getElementById(noDataId)?.classList.remove('hidden');
                 return null;
             }
+
+            // Combine labels: history + forecast
+            const labels = [...historyMonths, ...months];
+            const historyData = [...historyValues, ...Array(months.length).fill(null)];
+            const forecastData = [...Array(historyMonths.length).fill(null), ...preds];
 
             const ctx = document.getElementById(canvasId).getContext('2d');
             return new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: months,
-                    datasets: [{
-                        label,
-                        data: preds,
-                        borderColor: color,
-                        backgroundColor: color,
-                        tension: 0.25,
-                        fill: false,
-                        pointRadius: 3
-                    }]
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Historical',
+                            data: historyData,
+                            borderColor: color,
+                            backgroundColor: color,
+                            tension: 0.25,
+                            fill: false,
+                            pointRadius: 2,
+                            borderWidth: 2
+                        },
+                        {
+                            label,
+                            data: forecastData,
+                            borderColor: color,
+                            backgroundColor: color,
+                            borderDash: [6, 6],
+                            tension: 0.25,
+                            fill: false,
+                            pointRadius: 3
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -77,6 +172,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
+        document.getElementById('downloadPredictionBtn')?.addEventListener('click', downloadPredictionCsv);
+
         if (salesChart) salesChart.destroy();
         salesChart = await renderPredictionChart({
             url: '/api/predict-sales?months=3',

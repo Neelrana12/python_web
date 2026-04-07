@@ -1,6 +1,6 @@
-# Welltrade Surgipharma - Advanced Analytics Dashboard
+# Welltrade Surgipharma - Analytics Dashboard
 
-A professional Flask-based analytics platform for pharmaceutical companies with real-time data visualization, predictive analysis, and interactive dashboards.
+A beginner-friendly Flask analytics dashboard for pharma business data (Sales, Purchase, Comparison, Prediction) with login and PDF reports.
 
 ## ✨ Key Features
 
@@ -31,12 +31,11 @@ A professional Flask-based analytics platform for pharmaceutical companies with 
 - Period-over-period growth
 - Business insights
 
-### 🔮 Predictive Analysis (AI-Powered Simple Model)
-- 3-month sales forecasting
-- 3-month purchase forecasting
-- Average monthly growth analysis
-- Linear trend prediction
-- No complex ML - simple, exam-friendly logic
+### 🔮 Predictive Analysis (Simple + Exam-Friendly)
+- Forecasts next 3–4 months for Sales and Purchase
+- Uses monthly totals + a straight-line trend (Linear Regression)
+- Shows **Historical vs Forecast** chart
+- Download prediction as **CSV** from the Prediction page
 
 ### 📁 Reports Management
 - PDF report upload/download
@@ -44,11 +43,11 @@ A professional Flask-based analytics platform for pharmaceutical companies with 
 - Secure file storage
 - Auto-numbering for duplicate reports
 
-### 🔐 Secure Authentication
-- Email/password login with bcrypt hashing
+### 🔐 Authentication
+- Email/password login (bcrypt hashing)
 - Admin & Manager roles
 - Session management (24-hour timeout)
-- Secure database storage
+- SQLite database (`app.db`)
 
 ### 🎨 Professional UI
 - Clean, modern SaaS design
@@ -59,8 +58,10 @@ A professional Flask-based analytics platform for pharmaceutical companies with 
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Flask (Python 3.11)
-- **Database**: SQLite with bcrypt authentication
+- **Backend**: Flask
+- **Local Python**: Python 3.12 (recommended for easy installs)
+- **Deployment Runtime**: Python 3.11.7 (see runtime.txt)
+- **Database**: SQLite + bcrypt authentication
 - **Frontend**: HTML5, Jinja2 Templates, CSS3
 - **Charts**: Chart.js for data visualization
 - **Data Processing**: Pandas for CSV parsing
@@ -69,15 +70,7 @@ A professional Flask-based analytics platform for pharmaceutical companies with 
 
 ## 📦 Requirements
 
-```
-Flask==3.0.0
-pandas==2.0.3
-bcrypt==4.0.1
-Werkzeug==3.0.1
-Jinja2==3.1.2
-MarkupSafe==2.1.3
-gunicorn==21.2.0
-```
+All dependencies are pinned in requirements.txt.
 
 ## 🚀 Quick Start (Local)
 
@@ -87,20 +80,29 @@ git clone https://github.com/Neelrana12/python_web.git
 cd python_web
 ```
 
-### 2. Install Dependencies
+### 2. Create Virtual Environment (Recommended)
+
+Windows (PowerShell):
 ```bash
-pip install -r requirements.txt
+py -3.12 -m venv .venv
+.\.venv\Scripts\activate
 ```
 
-### 3. Run Application
+### 3. Install Dependencies
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 4. Run Application
 ```bash
 python app.py
 ```
 
-### 4. Open in Browser
-Navigate to: `http://127.0.0.1:5000`
+### 5. Open in Browser
+Navigate to:
+- `http://127.0.0.1:5000/login`
 
-### 5. Login with Demo Credentials
+### 6. Login with Demo Credentials
 - **Admin**: admin@gmail.com / 1234
 - **Manager**: manager@gmail.com / 1234
 
@@ -170,7 +172,7 @@ python_web/
 | `/sales` | GET | Sales dashboard |
 | `/purchase` | GET | Purchase analytics |
 | `/comparison` | GET | Sales vs Purchase comparison |
-| `/prediction` | GET | 3-month predictive analysis |
+| `/prediction` | GET | Predictive analysis (3–4 months) |
 | `/reports` | GET | PDF report library |
 
 ### API Endpoints (JSON)
@@ -180,8 +182,8 @@ python_web/
 | `/api/purchase-data` | GET | Purchase data by vendor |
 | `/api/comparison` | GET | Sales vs Purchase totals |
 | `/api/insights` | GET | Dynamic business insights |
-| `/api/predict-sales` | GET | Sales forecast (3 months) |
-| `/api/predict-purchase` | GET | Purchase forecast (3 months) |
+| `/api/predict-sales` | GET | Sales forecast (3–4 months) |
+| `/api/predict-purchase` | GET | Purchase forecast (3–4 months) |
 
 ### File Management
 | Route | Method | Description |
@@ -234,21 +236,21 @@ date, vendor_name, region, amount
 2024-01-16, Vendor B, South, 45000
 ```
 
-## 🔮 Predictive Analysis Logic
+## 🔮 Predictive Analysis Logic (Simple)
 
-**Method**: Simple Average Monthly Growth + Linear Extrapolation
+**Method**: Monthly totals + straight-line trend
 
-1. Load historical data (last 6 months)
-2. Calculate average monthly growth
-3. Apply to last month's value for next 3 months
-4. Returns: `next_value = last_value + avg_growth * i`
+1. Convert daily rows into **monthly total sales/purchase**
+2. Fit a straight line: $y = a + b x$
+3. Predict next 3–4 months from that line
 
-**Example**:
-- Last month sales: ₹100,000
-- Average monthly growth: ₹5,000
-- Month 1 prediction: ₹105,000
-- Month 2 prediction: ₹110,000
-- Month 3 prediction: ₹115,000
+This is intentionally simple and easy to explain in exams.
+
+## 📍 Contact / Address
+
+- **Phone**: +91 9610331100
+- **Email**: welltradesurgipharma@gmail.com
+- **Address**: A\94, Ruapl Industrial\1, Udhna, 52, Udhna Magdalla Road, Ground, Surat, Gujarat 394210
 
 ## 🌐 Live Deployment
 

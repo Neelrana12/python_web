@@ -4,6 +4,8 @@ from datetime import timedelta
 
 from flask import jsonify, request
 
+import numpy as np
+
 from .auth import login_required
 from .data_helpers import (
     apply_date_range,
@@ -36,6 +38,64 @@ def get_filter_param(param_name: str, default: str = "") -> str:
 
 def register_api_routes(app):
     data_dir = app.config["DATA_DIR"]
+
+    def _linear_forecast_monthly(monthly_series, months_ahead: int, history_points: int = 12):
+        """Simple forecast using a straight-line (linear regression) trend.
+
+        - monthly_series: pandas Series indexed by Period[M], values are totals
+        - months_ahead: how many future months to forecast
+        Returns dict with history + forecast arrays.
+        """
+
+        monthly_series = monthly_series.dropna().sort_index()
+        if len(monthly_series) == 0:
+            return {
+                "history_months": [],
+                "history_values": [],
+                "months": [],
+                "predictions": [],
+            }
+
+        # Use recent history for plotting + training
+        recent = monthly_series.tail(max(history_points, 2))
+
+        # If we have only 1 month, forecast = same value
+        if len(recent) < 2:
+            last_period = recent.index[-1]
+            last_value = float(recent.iloc[-1])
+            months = []
+            predictions = []
+            for i in range(1, months_ahead + 1):
+                next_period = last_period + i
+                months.append(next_period.to_timestamp().strftime("%b %Y"))
+                predictions.append(max(0.0, last_value))
+            return {
+                "history_months": [last_period.to_timestamp().strftime("%b %Y")],
+                "history_values": [last_value],
+                "months": months,
+                "predictions": predictions,
+            }
+
+        # Linear regression: y = a + b*x (x = 0..n-1)
+        y = recent.astype(float).to_numpy()
+        x = np.arange(len(y), dtype=float)
+        b, a = np.polyfit(x, y, 1)
+
+        last_period = recent.index[-1]
+        months = []
+        predictions = []
+        for i in range(1, months_ahead + 1):
+            next_period = last_period + i
+            months.append(next_period.to_timestamp().strftime("%b %Y"))
+            y_hat = a + b * (len(y) - 1 + i)
+            predictions.append(max(0.0, float(y_hat)))
+
+        return {
+            "history_months": [p.to_timestamp().strftime("%b %Y") for p in recent.index],
+            "history_values": [float(v) for v in y.tolist()],
+            "months": months,
+            "predictions": predictions,
+        }
 
     @app.route("/api/sales-data")
     @login_required
@@ -128,7 +188,7 @@ def register_api_routes(app):
     @app.route("/api/predict-sales")
     @login_required
     def api_predict_sales():
-        """Predict next 3–4 months sales using average monthly growth (no ML)."""
+        """Predict next 3–4 months sales using a simple linear trend."""
 
         try:
             months_ahead = int(request.args.get("months", 3))
@@ -154,28 +214,15 @@ def register_api_routes(app):
             return jsonify({"months": [], "predictions": []})
 
         monthly = df.groupby(df["date"].dt.to_period("M"))["amount"].sum().sort_index()
-        last_value = float(monthly.iloc[-1])
+        result = _linear_forecast_monthly(monthly, months_ahead=months_ahead, history_points=12)
 
-        recent = monthly.tail(6)
-        pct = recent.pct_change().dropna()
-        avg_pct = float(pct.mean()) if len(pct) > 0 else 0.0
-        if avg_pct < -0.95:
-            avg_pct = -0.95
-
-        last_period = monthly.index[-1]
-        months = []
-        predictions = []
-        for i in range(1, months_ahead + 1):
-            next_period = last_period + i
-            months.append(next_period.to_timestamp().strftime("%b %Y"))
-            predictions.append(max(0.0, last_value * ((1.0 + avg_pct) ** i)))
-
-        return jsonify({"months": months, "predictions": [float(v) for v in predictions]})
+        # Backwards compatible keys: months + predictions
+        return jsonify(result)
 
     @app.route("/api/predict-purchase")
     @login_required
     def api_predict_purchase():
-        """Predict next 3–4 months purchase using average monthly growth (no ML)."""
+        """Predict next 3–4 months purchase using a simple linear trend."""
 
         try:
             months_ahead = int(request.args.get("months", 3))
@@ -205,23 +252,10 @@ def register_api_routes(app):
             return jsonify({"months": [], "predictions": []})
 
         monthly = df.groupby(df["date"].dt.to_period("M"))["amount"].sum().sort_index()
-        last_value = float(monthly.iloc[-1])
+        result = _linear_forecast_monthly(monthly, months_ahead=months_ahead, history_points=12)
 
-        recent = monthly.tail(6)
-        pct = recent.pct_change().dropna()
-        avg_pct = float(pct.mean()) if len(pct) > 0 else 0.0
-        if avg_pct < -0.95:
-            avg_pct = -0.95
-
-        last_period = monthly.index[-1]
-        months = []
-        predictions = []
-        for i in range(1, months_ahead + 1):
-            next_period = last_period + i
-            months.append(next_period.to_timestamp().strftime("%b %Y"))
-            predictions.append(max(0.0, last_value * ((1.0 + avg_pct) ** i)))
-
-        return jsonify({"months": months, "predictions": [float(v) for v in predictions]})
+        # Backwards compatible keys: months + predictions
+        return jsonify(result)
 
     @app.route("/api/purchase-data")
     @login_required
