@@ -29,15 +29,15 @@ def register_page_routes(app):
         )
         return sorted(vendors, key=lambda v: v.lower())
 
-    def _get_sales_customers() -> list[str]:
+    def _get_sales_cities() -> list[str]:
         df = load_csv_data("sales.csv", data_dir)
         if df is None:
             df = load_csv_data("final sale.csv", data_dir)
         df = normalize_sales(df) if df is not None else None
-        if df is None or len(df) == 0 or "customer" not in df.columns:
+        if df is None or len(df) == 0 or "city" not in df.columns:
             return []
-        customers = (
-            df["customer"]
+        cities = (
+            df["city"]
             .astype(str)
             .map(lambda v: v.strip())
             .loc[lambda s: s.ne("")]
@@ -45,7 +45,7 @@ def register_page_routes(app):
             .unique()
             .tolist()
         )
-        return sorted(customers, key=lambda v: v.lower())
+        return sorted(cities, key=lambda v: v.lower())
 
     @app.route("/")
     def home():
@@ -150,18 +150,18 @@ def register_page_routes(app):
     @app.route("/sales-filter", methods=["POST"])
     @login_required
     def set_sales_filter():
-        """Set sales customer + date filters in session."""
+        """Set sales city + date filters in session."""
 
-        customer = (request.form.get("customer") or "").strip()
+        city = (request.form.get("city") or "").strip()
         start_date = (request.form.get("start_date") or "").strip()
         end_date = (request.form.get("end_date") or "").strip()
 
-        session["sales_customer_filter"] = customer
+        session["sales_city_filter"] = city
         session["start_date_filter"] = start_date
         session["end_date_filter"] = end_date
 
         gf = session.get("global_filters") or {}
-        gf.update({"sales_customer": customer, "start_date": start_date, "end_date": end_date})
+        gf.update({"sales_city": city, "start_date": start_date, "end_date": end_date})
         session["global_filters"] = gf
 
         return redirect(request.form.get("next") or url_for("sales"))
@@ -169,14 +169,14 @@ def register_page_routes(app):
     @app.route("/sales-filter/clear", methods=["POST"])
     @login_required
     def clear_sales_filter():
-        """Clear sales customer + date filters."""
+        """Clear sales city + date filters."""
 
-        session.pop("sales_customer_filter", None)
+        session.pop("sales_city_filter", None)
         session.pop("start_date_filter", None)
         session.pop("end_date_filter", None)
 
         gf = session.get("global_filters") or {}
-        gf.pop("sales_customer", None)
+        gf.pop("sales_city", None)
         gf.pop("start_date", None)
         gf.pop("end_date", None)
         session["global_filters"] = gf if gf else None
@@ -184,6 +184,44 @@ def register_page_routes(app):
             session.pop("global_filters", None)
 
         return redirect(request.form.get("next") or url_for("sales"))
+
+    @app.route("/comparison-filter", methods=["POST"])
+    @login_required
+    def set_comparison_filter():
+        """Set comparison city + date filters in session."""
+
+        city = (request.form.get("city") or "").strip()
+        start_date = (request.form.get("start_date") or "").strip()
+        end_date = (request.form.get("end_date") or "").strip()
+
+        session["comparison_city_filter"] = city
+        session["start_date_filter"] = start_date
+        session["end_date_filter"] = end_date
+
+        gf = session.get("global_filters") or {}
+        gf.update({"comparison_city": city, "start_date": start_date, "end_date": end_date})
+        session["global_filters"] = gf
+
+        return redirect(request.form.get("next") or url_for("comparison"))
+
+    @app.route("/comparison-filter/clear", methods=["POST"])
+    @login_required
+    def clear_comparison_filter():
+        """Clear comparison city + date filters."""
+
+        session.pop("comparison_city_filter", None)
+        session.pop("start_date_filter", None)
+        session.pop("end_date_filter", None)
+
+        gf = session.get("global_filters") or {}
+        gf.pop("comparison_city", None)
+        gf.pop("start_date", None)
+        gf.pop("end_date", None)
+        session["global_filters"] = gf if gf else None
+        if session.get("global_filters") is None:
+            session.pop("global_filters", None)
+
+        return redirect(request.form.get("next") or url_for("comparison"))
 
     @app.route("/dashboard")
     @login_required
@@ -200,7 +238,7 @@ def register_page_routes(app):
         return render_template(
             "sales.html",
             username=get_username(),
-            sales_customers=_get_sales_customers(),
+            sales_cities=_get_sales_cities(),
         )
 
     @app.route("/purchase")
@@ -219,7 +257,11 @@ def register_page_routes(app):
     def comparison():
         """Sales vs Purchase Comparison."""
 
-        return render_template("comparison.html", username=get_username())
+        return render_template(
+            "comparison.html",
+            username=get_username(),
+            sales_cities=_get_sales_cities(),
+        )
 
     @app.route("/prediction")
     @login_required

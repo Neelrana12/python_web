@@ -196,6 +196,3 @@ if __name__ == "__main__":
     # Creates app.db + users table + default demo users.
     init_db()
     ensure_default_admin()
-    print("Database initialized.")
-    print("Default admin: admin@gmail.com / 1234")
-    print("Default manager: manager@gmail.com / 1234")

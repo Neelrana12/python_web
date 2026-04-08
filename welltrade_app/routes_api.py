@@ -5,6 +5,7 @@ from datetime import timedelta
 from flask import jsonify, request
 
 import numpy as np
+import pandas as pd
 
 from .auth import login_required
 from .data_helpers import (
@@ -29,11 +30,10 @@ def get_filter_param(param_name: str, default: str = "") -> str:
     gf = session.get("global_filters") or {}
     if param_name == "region":
         return session.get("region_filter") or gf.get("region", "")
-    if param_name == "customer":
-        # Backward compatible (older UI used a shared customer_filter)
-        return session.get("customer_filter") or gf.get("customer", "")
-    if param_name == "sales_customer":
-        return session.get("sales_customer_filter") or gf.get("sales_customer", "")
+    if param_name == "sales_city":
+        return session.get("sales_city_filter") or gf.get("sales_city", "")
+    if param_name == "comparison_city":
+        return session.get("comparison_city_filter") or gf.get("comparison_city", "")
     if param_name == "purchase_customer":
         return session.get("purchase_customer_filter") or gf.get("purchase_customer", "")
     if param_name == "start_date":
@@ -109,7 +109,7 @@ def register_api_routes(app):
     def get_sales_data():
         """API for sales by city."""
 
-        customer = get_filter_param("sales_customer")
+        city = get_filter_param("sales_city")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
         top_n = int(request.args.get("top_n", 10))
@@ -150,8 +150,8 @@ def register_api_routes(app):
                 400,
             )
 
-        if customer:
-            df = df[df["customer"].astype(str).str.lower() == customer.lower()]
+        if city:
+            df = df[df["city"].astype(str).str.lower() == city.lower()]
 
         df_for_growth = df
         df = apply_date_range(df, start_date, end_date)
@@ -203,7 +203,7 @@ def register_api_routes(app):
             months_ahead = 3
         months_ahead = max(3, min(months_ahead, 4))
 
-        customer = get_filter_param("sales_customer")
+        city = get_filter_param("sales_city")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
 
@@ -214,8 +214,8 @@ def register_api_routes(app):
         if df is None or len(df) == 0:
             return jsonify({"months": [], "predictions": []})
 
-        if customer:
-            df = df[df["customer"].astype(str).str.lower() == customer.lower()]
+        if city:
+            df = df[df["city"].astype(str).str.lower() == city.lower()]
         df = apply_date_range(df, start_date, end_date)
         if df is None or len(df) == 0:
             return jsonify({"months": [], "predictions": []})
@@ -237,7 +237,7 @@ def register_api_routes(app):
             months_ahead = 3
         months_ahead = max(3, min(months_ahead, 4))
 
-        customer = get_filter_param("purchase_customer")
+        vendor = get_filter_param("purchase_customer")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
 
@@ -248,8 +248,8 @@ def register_api_routes(app):
         if df is None or len(df) == 0:
             return jsonify({"months": [], "predictions": []})
 
-        if customer:
-            df = df[df["vendor"].astype(str).str.lower() == customer.lower()]
+        if vendor:
+            df = df[df["vendor"].astype(str).str.lower() == vendor.lower()]
 
         df = apply_date_range(df, start_date, end_date)
         if df is None or len(df) == 0:
@@ -266,7 +266,7 @@ def register_api_routes(app):
     def get_purchase_data():
         """API for purchase by vendor."""
 
-        customer = get_filter_param("purchase_customer")
+        vendor = get_filter_param("purchase_customer")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
         top_n = int(request.args.get("top_n", 10))
@@ -307,8 +307,8 @@ def register_api_routes(app):
                 400,
             )
 
-        if customer:
-            df = df[df["vendor"].astype(str).str.lower() == customer.lower()]
+        if vendor:
+            df = df[df["vendor"].astype(str).str.lower() == vendor.lower()]
 
         df_for_growth = df
         df = apply_date_range(df, start_date, end_date)
@@ -352,9 +352,12 @@ def register_api_routes(app):
     @app.route("/api/comparison")
     @login_required
     def get_comparison_data():
-        """API for sales vs purchase comparison."""
+        """API for sales vs purchase comparison.
 
-        region = get_filter_param("region")
+        Returns month-wise series for both Sales and Purchase.
+        """
+
+        city = get_filter_param("comparison_city")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
 
@@ -370,8 +373,9 @@ def register_api_routes(app):
                 jsonify(
                     {
                         "error": "Data not found",
-                        "labels": ["Sales", "Purchase"],
-                        "values": [0.0, 0.0],
+                        "labels": [],
+                        "sales_values": [],
+                        "purchase_values": [],
                         "difference": 0.0,
                         "total_sales": 0.0,
                         "total_purchase": 0.0,
@@ -388,8 +392,9 @@ def register_api_routes(app):
                 jsonify(
                     {
                         "error": "Invalid format",
-                        "labels": ["Sales", "Purchase"],
-                        "values": [0.0, 0.0],
+                        "labels": [],
+                        "sales_values": [],
+                        "purchase_values": [],
                         "difference": 0.0,
                         "total_sales": 0.0,
                         "total_purchase": 0.0,
@@ -398,12 +403,8 @@ def register_api_routes(app):
                 400,
             )
 
-        if region:
-            sales_df = sales_df[sales_df["city"].astype(str).str.lower() == region.lower()]
-            if "region" in purchase_df.columns:
-                purchase_df = purchase_df[purchase_df["region"].astype(str).str.lower() == region.lower()]
-            else:
-                purchase_df = purchase_df[purchase_df["vendor"].astype(str).str.lower() == region.lower()]
+        if city:
+            sales_df = sales_df[sales_df["city"].astype(str).str.lower() == city.lower()]
 
         sales_df = apply_date_range(sales_df, start_date, end_date)
         purchase_df = apply_date_range(purchase_df, start_date, end_date)
@@ -411,11 +412,46 @@ def register_api_routes(app):
         sales_total = float(sales_df["amount"].sum()) if len(sales_df) > 0 else 0.0
         purchase_total = float(purchase_df["amount"].sum()) if len(purchase_df) > 0 else 0.0
 
+        # Month-wise trend (align both series on the same label axis)
+        def month_key(s):
+            return s.dt.to_period("M").astype(str)
+
+        sales_monthly = (
+            sales_df.assign(_m=month_key(sales_df["date"]))
+            .groupby("_m")["amount"]
+            .sum()
+            .sort_index()
+        )
+        purchase_monthly = (
+            purchase_df.assign(_m=month_key(purchase_df["date"]))
+            .groupby("_m")["amount"]
+            .sum()
+            .sort_index()
+        )
+
+        month_labels = sorted(set(sales_monthly.index.tolist()) | set(purchase_monthly.index.tolist()))
+
+        # If data spans multiple years, include year; otherwise render as month short name.
+        years = {lbl.split("-")[0] for lbl in month_labels if isinstance(lbl, str) and "-" in lbl}
+        show_year = len(years) > 1
+
+        def fmt_month(lbl: str) -> str:
+            try:
+                dt = pd.to_datetime(lbl + "-01")
+                return dt.strftime("%b %Y") if show_year else dt.strftime("%b")
+            except Exception:
+                return str(lbl)
+
+        labels = [fmt_month(m) for m in month_labels]
+        sales_values = [float(sales_monthly.get(m, 0.0)) for m in month_labels]
+        purchase_values = [float(purchase_monthly.get(m, 0.0)) for m in month_labels]
+
         diff = sales_total - purchase_total
         return jsonify(
             {
-                "labels": ["Sales", "Purchase"],
-                "values": [sales_total, purchase_total],
+                "labels": labels,
+                "sales_values": sales_values,
+                "purchase_values": purchase_values,
                 "difference": diff,
                 "total_sales": sales_total,
                 "total_purchase": purchase_total,

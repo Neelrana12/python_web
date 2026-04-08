@@ -84,12 +84,12 @@
                             <form action="{{ url_for('set_sales_filter') }}" method="POST" class="filter-form">
                                 <input type="hidden" name="next" value="{{ request.path }}">
                                 <div class="form-group">
-                                    <label>Customer</label>
-                                    <select name="customer">
-                                        {% set selected_customer = (session.get('global_filters') or {}).get('sales_customer','') %}
-                                        <option value="" {% if not selected_customer %}selected{% endif %}>All Customers</option>
-                                        {% for c in (sales_customers or []) %}
-                                            <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
+                                    <label>City</label>
+                                    <select name="city">
+                                        {% set selected_city = (session.get('global_filters') or {}).get('sales_city','') %}
+                                        <option value="" {% if not selected_city %}selected{% endif %}>All Cities</option>
+                                        {% for c in (sales_cities or []) %}
+                                            <option value="{{ c }}" {% if c == selected_city %}selected{% endif %}>{{ c }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -104,6 +104,33 @@
                                 <button type="submit" class="btn">Apply</button>
                             </form>
                             <form action="{{ url_for('clear_sales_filter') }}" method="POST">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn">Clear</button>
+                            </form>
+                        {% elif request.endpoint == 'comparison' %}
+                            <form action="{{ url_for('set_comparison_filter') }}" method="POST" class="filter-form">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <div class="form-group">
+                                    <label>City</label>
+                                    <select name="city">
+                                        {% set selected_city = (session.get('global_filters') or {}).get('comparison_city','') %}
+                                        <option value="" {% if not selected_city %}selected{% endif %}>All Cities</option>
+                                        {% for c in (sales_cities or []) %}
+                                            <option value="{{ c }}" {% if c == selected_city %}selected{% endif %}>{{ c }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Start Date</label>
+                                    <input name="start_date" type="date" value="{{ (session.get('global_filters') or {}).get('start_date','') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>End Date</label>
+                                    <input name="end_date" type="date" value="{{ (session.get('global_filters') or {}).get('end_date','') }}">
+                                </div>
+                                <button type="submit" class="btn">Apply</button>
+                            </form>
+                            <form action="{{ url_for('clear_comparison_filter') }}" method="POST">
                                 <input type="hidden" name="next" value="{{ request.path }}">
                                 <button type="submit" class="btn">Clear</button>
                             </form>

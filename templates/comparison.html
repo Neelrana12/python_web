@@ -40,8 +40,8 @@
 </div>
 
 <div class="dashboard-container">
-    <div class="chart-container" style="max-width: 500px; margin: 0 auto;">
-        <h3>Sales vs Purchase Distribution</h3>
+    <div class="chart-container">
+        <h3>Total Sales and Total Purchase by Month</h3>
         <div id="comparison-loading" class="loading-row hidden"><span class="spinner"></span><span>Loading...</span></div>
         <div id="comparison-no-data" class="no-data hidden">No data found.</div>
         <canvas id="comparisonChart"></canvas>
@@ -72,7 +72,7 @@
             document.getElementById('comparison-profit').textContent = fmt.format(profit);
             document.getElementById('comparison-margin').textContent = `Margin: ${margin}%`;
 
-            if (!data.values?.length || (data.values[0] === 0 && data.values[1] === 0)) {
+            if (!data.labels?.length || (!data.sales_values?.length && !data.purchase_values?.length)) {
                 document.getElementById('comparison-no-data')?.classList.remove('hidden');
                 return;
             }
@@ -81,27 +81,54 @@
             if (chart) chart.destroy();
             
             chart = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'line',
                 data: {
                     labels: data.labels,
                     datasets: [{
-                        data: data.values,
-                        backgroundColor: ['#3b82f6', '#10b981'],
-                        borderColor: ['#1e40af', '#059669'],
-                        borderWidth: 2,
-                        hoverBackgroundColor: ['#2563eb', '#059669']
+                        label: 'Total Sales',
+                        data: data.sales_values || [],
+                        borderColor: '#3b82f6',
+                        borderWidth: 3,
+                        tension: 0.35,
+                        fill: false,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Total Purchase',
+                        data: data.purchase_values || [],
+                        borderColor: '#1e40af',
+                        borderWidth: 3,
+                        tension: 0.35,
+                        fill: false,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        yAxisID: 'y1'
                     }]
                 },
                 options: {
                     responsive: true,
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { display: true, position: 'bottom' },
-                        tooltip: { callbacks: { label: ctx => {
-                            const val = ctx.parsed || 0;
-                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                            const pct = ((val / total) * 100).toFixed(1);
-                            return (ctx.label || '') + ': ' + fmt.format(val) + ' (' + pct + '%)';
-                        }}}
+                        legend: { display: true, position: 'top' },
+                        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmt.format(ctx.parsed.y || 0)}` } }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Month' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: v => '₹' + Number(v).toLocaleString('en-IN') },
+                            title: { display: true, text: 'Total Sales' }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { callback: v => '₹' + Number(v).toLocaleString('en-IN') },
+                            title: { display: true, text: 'Total Purchase' }
+                        }
                     }
                 }
             });

@@ -38,7 +38,7 @@ def create_app(*, base_dir: str) -> Flask:
         UPLOADS_DIR=uploads_dir,
         MAX_UPLOAD_MB=max_upload_mb,
         MAX_CONTENT_LENGTH=max_upload_mb * 1024 * 1024,
-        ALLOWED_REPORT_EXTENSIONS={".pdf"},
+        ALLOWED_REPORT_EXTENSIONS={".pdf"}
     )
 
     init_db()

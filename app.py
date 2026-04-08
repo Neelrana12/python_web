@@ -16,4 +16,5 @@ app = create_app(base_dir=BASE_DIR)
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    debug = (os.environ.get("WELLTRADE_DEBUG") or "").strip() in {"1", "true", "True", "yes", "YES"}
+    app.run(debug=debug, port=5000)
