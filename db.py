@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import bcrypt
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "app.db")
+DB_PATH = os.environ.get("WELLTRADE_DB_PATH") or os.path.join(BASE_DIR, "app.db")
 
 
 def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
@@ -36,7 +36,71 @@ def init_db(db_path: str = DB_PATH) -> None:
             );
             """
         )
+
+        # Store report content in DB so downloads survive missing files on disk.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS report_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT NOT NULL UNIQUE,
+                content BLOB NOT NULL,
+                uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            """
+        )
         conn.commit()
+
+
+def upsert_report_file(filename: str, content: bytes, db_path: str = DB_PATH) -> None:
+    safe_name = (filename or "").strip()
+    if not safe_name:
+        raise ValueError("filename required")
+    if content is None or len(content) == 0:
+        raise ValueError("content required")
+
+    with get_connection(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO report_files (filename, content)
+            VALUES (?, ?)
+            ON CONFLICT(filename) DO UPDATE SET
+                content = excluded.content,
+                uploaded_at = datetime('now');
+            """,
+            (safe_name, sqlite3.Binary(content)),
+        )
+        conn.commit()
+
+
+def list_report_files(db_path: str = DB_PATH) -> list[str]:
+    with get_connection(db_path) as conn:
+        rows = conn.execute("SELECT filename FROM report_files ORDER BY LOWER(filename)").fetchall()
+    return [str(r["filename"]) for r in rows]
+
+
+def get_report_file(filename: str, db_path: str = DB_PATH) -> bytes | None:
+    safe_name = (filename or "").strip()
+    if not safe_name:
+        return None
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT content FROM report_files WHERE filename = ?",
+            (safe_name,),
+        ).fetchone()
+    if not row:
+        return None
+    return bytes(row["content"]) if row["content"] is not None else None
+
+
+def delete_report_file(filename: str, db_path: str = DB_PATH) -> int:
+    safe_name = (filename or "").strip()
+    if not safe_name:
+        return 0
+
+    with get_connection(db_path) as conn:
+        cursor = conn.execute("DELETE FROM report_files WHERE filename = ?", (safe_name,))
+        conn.commit()
+        return int(cursor.rowcount)
 
 
 def add_report(filename: str, db_path: str = DB_PATH) -> int:

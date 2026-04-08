@@ -29,6 +29,13 @@ def get_filter_param(param_name: str, default: str = "") -> str:
     gf = session.get("global_filters") or {}
     if param_name == "region":
         return session.get("region_filter") or gf.get("region", "")
+    if param_name == "customer":
+        # Backward compatible (older UI used a shared customer_filter)
+        return session.get("customer_filter") or gf.get("customer", "")
+    if param_name == "sales_customer":
+        return session.get("sales_customer_filter") or gf.get("sales_customer", "")
+    if param_name == "purchase_customer":
+        return session.get("purchase_customer_filter") or gf.get("purchase_customer", "")
     if param_name == "start_date":
         return session.get("start_date_filter") or gf.get("start_date", "")
     if param_name == "end_date":
@@ -102,7 +109,7 @@ def register_api_routes(app):
     def get_sales_data():
         """API for sales by city."""
 
-        region = get_filter_param("region")
+        customer = get_filter_param("sales_customer")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
         top_n = int(request.args.get("top_n", 10))
@@ -143,8 +150,8 @@ def register_api_routes(app):
                 400,
             )
 
-        if region:
-            df = df[df["city"].astype(str).str.lower() == region.lower()]
+        if customer:
+            df = df[df["customer"].astype(str).str.lower() == customer.lower()]
 
         df_for_growth = df
         df = apply_date_range(df, start_date, end_date)
@@ -196,7 +203,7 @@ def register_api_routes(app):
             months_ahead = 3
         months_ahead = max(3, min(months_ahead, 4))
 
-        region = get_filter_param("region")
+        customer = get_filter_param("sales_customer")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
 
@@ -207,8 +214,8 @@ def register_api_routes(app):
         if df is None or len(df) == 0:
             return jsonify({"months": [], "predictions": []})
 
-        if region:
-            df = df[df["city"].astype(str).str.lower() == region.lower()]
+        if customer:
+            df = df[df["customer"].astype(str).str.lower() == customer.lower()]
         df = apply_date_range(df, start_date, end_date)
         if df is None or len(df) == 0:
             return jsonify({"months": [], "predictions": []})
@@ -230,7 +237,7 @@ def register_api_routes(app):
             months_ahead = 3
         months_ahead = max(3, min(months_ahead, 4))
 
-        region = get_filter_param("region")
+        customer = get_filter_param("purchase_customer")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
 
@@ -241,11 +248,8 @@ def register_api_routes(app):
         if df is None or len(df) == 0:
             return jsonify({"months": [], "predictions": []})
 
-        if region:
-            if "region" in df.columns:
-                df = df[df["region"].astype(str).str.lower() == region.lower()]
-            else:
-                df = df[df["vendor"].astype(str).str.lower() == region.lower()]
+        if customer:
+            df = df[df["vendor"].astype(str).str.lower() == customer.lower()]
 
         df = apply_date_range(df, start_date, end_date)
         if df is None or len(df) == 0:
@@ -262,7 +266,7 @@ def register_api_routes(app):
     def get_purchase_data():
         """API for purchase by vendor."""
 
-        region = get_filter_param("region")
+        customer = get_filter_param("purchase_customer")
         start_date = parse_date(get_filter_param("start_date"))
         end_date = parse_date(get_filter_param("end_date"))
         top_n = int(request.args.get("top_n", 10))
@@ -303,11 +307,8 @@ def register_api_routes(app):
                 400,
             )
 
-        if region:
-            if "region" in df.columns:
-                df = df[df["region"].astype(str).str.lower() == region.lower()]
-            else:
-                df = df[df["vendor"].astype(str).str.lower() == region.lower()]
+        if customer:
+            df = df[df["vendor"].astype(str).str.lower() == customer.lower()]
 
         df_for_growth = df
         df = apply_date_range(df, start_date, end_date)

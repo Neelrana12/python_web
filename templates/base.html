@@ -51,28 +51,84 @@
             <!-- Header -->
             <header class="header">
                 <h2>{% block page_title %}Dashboard{% endblock %}</h2>
-                {% if request.endpoint not in ['dashboard', 'reports'] %}
+                {% if request.endpoint not in ['dashboard', 'reports', 'prediction'] %}
                     <div class="filter-section">
-                        <form action="{{ url_for('set_global_filter') }}" method="POST" class="filter-form">
-                            <input type="hidden" name="next" value="{{ request.path }}">
-                            <div class="form-group">
-                                <label>Global Region</label>
-                                <input name="region" type="text" placeholder="e.g., Mumbai" value="{{ (session.get('global_filters') or {}).get('region','') }}">
-                            </div>
-                            <div class="form-group">
-                                <label>Start Date</label>
-                                <input name="start_date" type="date" value="{{ (session.get('global_filters') or {}).get('start_date','') }}">
-                            </div>
-                            <div class="form-group">
-                                <label>End Date</label>
-                                <input name="end_date" type="date" value="{{ (session.get('global_filters') or {}).get('end_date','') }}">
-                            </div>
-                            <button type="submit" class="btn">Apply</button>
-                        </form>
-                        <form action="{{ url_for('clear_global_filter') }}" method="POST">
-                            <input type="hidden" name="next" value="{{ request.path }}">
-                            <button type="submit" class="btn">Clear</button>
-                        </form>
+                        {% if request.endpoint == 'purchase' %}
+                            <form action="{{ url_for('set_purchase_filter') }}" method="POST" class="filter-form">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <div class="form-group">
+                                    <label>Vendors</label>
+                                    <select name="customer">
+                                        {% set selected_customer = (session.get('global_filters') or {}).get('purchase_customer','') %}
+                                        <option value="" {% if not selected_customer %}selected{% endif %}>All Vendors</option>
+                                        {% for c in (purchase_customers or []) %}
+                                            <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Start Date</label>
+                                    <input name="start_date" type="date" value="{{ (session.get('global_filters') or {}).get('start_date','') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>End Date</label>
+                                    <input name="end_date" type="date" value="{{ (session.get('global_filters') or {}).get('end_date','') }}">
+                                </div>
+                                <button type="submit" class="btn">Apply</button>
+                            </form>
+                            <form action="{{ url_for('clear_purchase_filter') }}" method="POST">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn">Clear</button>
+                            </form>
+                        {% elif request.endpoint == 'sales' %}
+                            <form action="{{ url_for('set_sales_filter') }}" method="POST" class="filter-form">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <div class="form-group">
+                                    <label>Customer</label>
+                                    <select name="customer">
+                                        {% set selected_customer = (session.get('global_filters') or {}).get('sales_customer','') %}
+                                        <option value="" {% if not selected_customer %}selected{% endif %}>All Customers</option>
+                                        {% for c in (sales_customers or []) %}
+                                            <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Start Date</label>
+                                    <input name="start_date" type="date" value="{{ (session.get('global_filters') or {}).get('start_date','') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>End Date</label>
+                                    <input name="end_date" type="date" value="{{ (session.get('global_filters') or {}).get('end_date','') }}">
+                                </div>
+                                <button type="submit" class="btn">Apply</button>
+                            </form>
+                            <form action="{{ url_for('clear_sales_filter') }}" method="POST">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn">Clear</button>
+                            </form>
+                        {% else %}
+                            <form action="{{ url_for('set_global_filter') }}" method="POST" class="filter-form">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <div class="form-group">
+                                    <label>Global Region</label>
+                                    <input name="region" type="text" placeholder="e.g., Mumbai" value="{{ (session.get('global_filters') or {}).get('region','') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Start Date</label>
+                                    <input name="start_date" type="date" value="{{ (session.get('global_filters') or {}).get('start_date','') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>End Date</label>
+                                    <input name="end_date" type="date" value="{{ (session.get('global_filters') or {}).get('end_date','') }}">
+                                </div>
+                                <button type="submit" class="btn">Apply</button>
+                            </form>
+                            <form action="{{ url_for('clear_global_filter') }}" method="POST">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn">Clear</button>
+                            </form>
+                        {% endif %}
                     </div>
                 {% endif %}
             </header>

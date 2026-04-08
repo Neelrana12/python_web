@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import io
 import os
 
 import pandas as pd
-from flask import abort, redirect, render_template, request, send_from_directory, url_for
+from flask import abort, redirect, render_template, request, send_file, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
 from .auth import admin_required, get_username, login_required
 from .file_validation import validate_csv, validate_pdf
 
-from db import add_report, delete_report_by_filename, list_reports
+from db import delete_report_by_filename
+from db import delete_report_file, get_report_file, list_report_files, upsert_report_file
 
 
 def register_file_routes(app):
@@ -21,7 +23,7 @@ def register_file_routes(app):
     bootstrapped_reports = False
 
     def bootstrap_reports_storage() -> None:
-        """One-time migration: move legacy reports/*.pdf into uploads/ and sync DB."""
+        """One-time migration: move legacy reports/*.pdf into uploads/ and sync DB-backed storage."""
 
         nonlocal bootstrapped_reports
         if bootstrapped_reports:
@@ -57,7 +59,12 @@ def register_file_routes(app):
                 os.replace(src, dst)
             except Exception:
                 continue
-            add_report(os.path.basename(dst))
+            # Persist file content into DB for durability
+            try:
+                with open(dst, "rb") as f:
+                    upsert_report_file(os.path.basename(dst), f.read())
+            except Exception:
+                pass
 
         # Ensure uploads_dir PDFs are present in DB (idempotent)
         try:
@@ -66,7 +73,12 @@ def register_file_routes(app):
             upload_names = []
 
         for name in upload_names:
-            add_report(name)
+            full_path = os.path.join(uploads_dir, name)
+            try:
+                with open(full_path, "rb") as f:
+                    upsert_report_file(name, f.read())
+            except Exception:
+                continue
 
     @app.route("/upload", methods=["POST"])
     @admin_required
@@ -125,7 +137,22 @@ def register_file_routes(app):
             target_path = os.path.join(uploads_dir, f"{base}-{counter}.pdf")
 
         uploaded_file.save(target_path)
-        add_report(os.path.basename(target_path))
+
+        # Persist report content in DB to prevent “missing” after restarts/deploys.
+        try:
+            with open(target_path, "rb") as f:
+                upsert_report_file(os.path.basename(target_path), f.read())
+        except Exception:
+            # Keep file on disk even if DB write fails.
+            pass
+
+        # Backward-compatible list table (optional)
+        try:
+            from db import add_report
+
+            add_report(os.path.basename(target_path))
+        except Exception:
+            pass
         return redirect(url_for("reports"))
 
     @app.route("/reports")
@@ -135,14 +162,11 @@ def register_file_routes(app):
 
         bootstrap_reports_storage()
 
-        files: list[str] = []
-        for name in list_reports():
+        files: list[dict[str, object]] = []
+        for name in list_report_files():
             if not name.lower().endswith(".pdf"):
                 continue
-            if os.path.exists(os.path.join(uploads_dir, name)):
-                files.append(name)
-            else:
-                delete_report_by_filename(name)
+            files.append({"name": name, "exists": True})
 
         return render_template("reports.html", username=get_username(), files=files)
 
@@ -161,7 +185,20 @@ def register_file_routes(app):
             )
 
         if safe_name.lower().endswith(".pdf"):
-            return send_from_directory(uploads_dir, safe_name, as_attachment=True)
+            full_path = os.path.join(uploads_dir, safe_name)
+            if os.path.exists(full_path):
+                return send_from_directory(uploads_dir, safe_name, as_attachment=True)
+
+            blob = get_report_file(safe_name)
+            if blob:
+                return send_file(
+                    io.BytesIO(blob),
+                    mimetype="application/pdf",
+                    as_attachment=True,
+                    download_name=safe_name,
+                )
+
+            abort(404)
 
         abort(404)
 
@@ -181,6 +218,7 @@ def register_file_routes(app):
             except Exception:
                 return "Failed to delete report", 500
 
+        delete_report_file(safe_name)
         delete_report_by_filename(safe_name)
 
         return redirect(url_for("reports"))

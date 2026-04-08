@@ -271,6 +271,23 @@ This is intentionally simple and easy to explain in exams.
 6. Add environment variables (if needed)
 7. Connect custom domain
 
+### Prevent Reports Disappearing (Render Persistent Disk)
+
+Render web services can restart/redeploy and **local filesystem may reset**, which can make uploaded PDFs and SQLite data disappear.
+To ensure **reports never go missing after restart**, use a Render **Persistent Disk** and point the app to it.
+
+1. In Render service settings, add a **Persistent Disk** (example mount path: `/var/data`).
+2. Add these environment variables:
+	- `WELLTRADE_STORAGE_DIR=/var/data`
+	- `WELLTRADE_DB_PATH=/var/data/app.db`
+
+What these do:
+- `WELLTRADE_STORAGE_DIR` moves `data/`, `uploads/`, and `reports/` under the persistent disk.
+- `WELLTRADE_DB_PATH` stores SQLite DB on the persistent disk.
+
+Notes:
+- If you scale to multiple instances, SQLite on a disk can be problematic; for scaling, use a managed DB (e.g., Render Postgres) + object storage (S3-like) for PDFs.
+
 ### Deploy Latest Changes
 ```bash
 git add -A

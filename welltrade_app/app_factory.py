@@ -22,9 +22,10 @@ def create_app(*, base_dir: str) -> Flask:
     app.secret_key = "welltrade-secret-2024"
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)
 
-    data_dir = os.path.join(base_dir, "data")
-    reports_dir = os.path.join(base_dir, "reports")
-    uploads_dir = os.path.join(base_dir, "uploads")
+    storage_dir = os.environ.get("WELLTRADE_STORAGE_DIR") or base_dir
+    data_dir = os.path.join(storage_dir, "data")
+    reports_dir = os.path.join(storage_dir, "reports")
+    uploads_dir = os.path.join(storage_dir, "uploads")
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(reports_dir, exist_ok=True)
     os.makedirs(uploads_dir, exist_ok=True)

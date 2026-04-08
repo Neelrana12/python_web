@@ -26,11 +26,18 @@
             <div style="display:flex; flex-direction:column; gap:10px;">
                 {% for f in files %}
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 0; border-bottom:1px solid #eee;">
-                        <div style="color:#333; font-weight:600;">{{ f }}</div>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div style="color:#333; font-weight:600;">{{ f.name }}</div>
+                            {% if not f.exists %}
+                                <div style="color:#b45309; font-size:12px;">Missing on server (re-upload needed)</div>
+                            {% endif %}
+                        </div>
                         <div style="display:flex; gap:10px;">
-                            <a class="btn" href="{{ url_for('download', filename=f) }}">Download</a>
+                            {% if f.exists %}
+                                <a class="btn" href="{{ url_for('download', filename=f.name) }}">Download</a>
+                            {% endif %}
                             {% if session.get('role') == 'admin' %}
-                                <form action="{{ url_for('delete_report', filename=f) }}" method="POST" style="margin:0;">
+                                <form action="{{ url_for('delete_report', filename=f.name) }}" method="POST" style="margin:0;">
                                     <button type="submit" class="btn">Delete</button>
                                 </form>
                             {% endif %}
